@@ -1,0 +1,172 @@
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Opencv JS</title>
+    <script async src="js/opencv.js" onload="openCvReady();"></script>
+    <script src="js/utils.js"></script>
+
+    <style>
+      body {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+      }
+
+      #video_container {
+          display: flex;
+          justify-content: center;
+          margin-bottom: 20px;
+      }
+
+      #canvas_container {
+          display: flex;
+          justify-content: space-between;
+          width: 100%;
+          max-width: 640px;
+      }
+
+      canvas {
+          border: 1px solid black;
+          width: 200px;
+          height: 150px;
+      }
+  </style>
+
+</head>
+<body>
+    <div id="video_container">
+        <video id="cam_input" height="480" width="640"></video>
+    </div>
+    <div id="canvas_container">
+        <canvas id="green_output"></canvas>
+        <canvas id="red_output"></canvas>
+        <canvas id="blue_output"></canvas>
+    </div>
+    <div id="color_output">Detecting Color...</div>
+</body>
+<script type="text/JavaScript">
+function openCvReady() {
+  cv['onRuntimeInitialized']=()=>{
+    let video = document.getElementById("cam_input"); 
+    let green_canvas = document.getElementById("green_output");
+    let green_context = green_canvas.getContext('2d');
+
+    let red_canvas = document.getElementById("red_output");
+    let red_context = red_canvas.getContext('2d');
+
+    let blue_canvas = document.getElementById("blue_output");
+    let blue_context = blue_canvas.getContext('2d');
+
+    let colorOutput = document.getElementById("color_output");
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+    .then(function(stream) {
+        video.srcObject = stream;
+        video.play();
+    })
+    .catch(function(err) {
+        console.log("An error occurred! " + err);
+    });
+    let src = new cv.Mat(video.height, video.width, cv.CV_8UC4);
+    let dst = new cv.Mat(video.height, video.width, cv.CV_8UC1);
+    let gray = new cv.Mat();
+    let cap = new cv.VideoCapture(cam_input);
+
+    const FPS = 24;
+    function processVideo() {
+        let begin = Date.now();
+        cap.read(src);
+        // src.copyTo(dst); // Copys the webcam video directly to the canvas
+        cv.cvtColor(src, dst, cv.COLOR_RGBA2RGB);
+
+                    // Convert to HSV
+                    let hsv = new cv.Mat();
+                    cv.cvtColor(dst, hsv, cv.COLOR_RGB2HSV);
+
+                    // Define color ranges and masks
+                    let lowRed = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [0, 70, 50, 0]);
+                    let highRed = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [10, 255, 255, 0]);
+
+                    let lowGreen = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [35, 52, 72, 0]);
+                    let highGreen = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [85, 255, 255, 0]);
+
+                    let lowBlue = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [94, 80, 2, 0]);
+                    let highBlue = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [126, 255, 255, 0]);
+
+                    let maskRed = new cv.Mat();
+                    let maskGreen = new cv.Mat();
+                    let maskBlue = new cv.Mat();
+
+                    cv.inRange(hsv, lowRed, highRed, maskRed);
+                    cv.inRange(hsv, lowGreen, highGreen, maskGreen);
+                    cv.inRange(hsv, lowBlue, highBlue, maskBlue);
+
+                    let redPixels = cv.countNonZero(maskRed);
+                    let greenPixels = cv.countNonZero(maskGreen);
+                    let bluePixels = cv.countNonZero(maskBlue);
+
+                    // Update the color output based on detected color
+                    if (redPixels > greenPixels && redPixels > bluePixels) {
+                        colorOutput.innerText = "Color: Red";
+                    } else if (greenPixels > redPixels && greenPixels > bluePixels) {
+                        colorOutput.innerText = "Color: Green";
+                    } else if (bluePixels > redPixels && bluePixels > greenPixels) {
+                        colorOutput.innerText = "Color: Blue";
+                    } else {
+                        colorOutput.innerText = "Color: Unknown";
+                    }
+
+                    // Green Mask ------------
+                    let greenMaskColor = new cv.Mat();
+                    cv.cvtColor(maskGreen, greenMaskColor, cv.COLOR_GRAY2RGB);
+
+                    cv.imshow('green_output', greenMaskColor);
+                    greenMaskColor.delete();
+                    green_context.font = "40px Arial";
+                    green_context.fillStyle = "green";
+                    green_context.fillText("Green Mask", 10, green_canvas.height - 10);
+
+                    // Red Mask ------------
+                    let redMaskColor = new cv.Mat();
+                    cv.cvtColor(maskRed, redMaskColor, cv.COLOR_GRAY2RGB);
+
+                    cv.imshow('red_output', redMaskColor);
+                    redMaskColor.delete();
+                    red_context.font = "40px Arial";
+                    red_context.fillStyle = "red";
+                    red_context.fillText("Red Mask", 10, red_canvas.height - 10);
+
+                    // Blue Mask ------------
+                    let blueMaskColor = new cv.Mat();
+                    cv.cvtColor(maskBlue, blueMaskColor, cv.COLOR_GRAY2RGB);
+
+                    cv.imshow('blue_output', blueMaskColor);
+                    blueMaskColor.delete()
+                    blue_context.font = "40px Arial";
+                    blue_context.fillStyle = "blue";
+                    blue_context.fillText("Blue Mask", 10, blue_canvas.height - 10);
+
+
+                    // Clean up
+                    hsv.delete();
+                    maskRed.delete();
+                    maskGreen.delete();
+                    maskBlue.delete();
+                    lowRed.delete();
+                    highRed.delete();
+                    lowGreen.delete();
+                    highGreen.delete();
+                    lowBlue.delete();
+                    highBlue.delete();
+        // schedule next one.
+        let delay = 1000/FPS - (Date.now() - begin);
+        setTimeout(processVideo, delay);
+}
+// schedule first one.
+setTimeout(processVideo, 0);
+  };
+}
+</script>
+</html>
