@@ -1,0 +1,154 @@
+<!doctype html>
+<head>
+   <meta name="mobile-web-app-capable" content="yes">
+   <!-- full screen https://developer.chrome.com/multidevice/android/installtohomescreen -->
+   <meta name="viewport" content="width=device-width, user-scalable=no">
+   <!-- do not allow window rescaling.  To avoid window rescaling in portrait mode, added with=device-width from http://stackoverflow.com/questions/22771523/ipad-w-retina-safari-reported-dimensions-in-landscape-make-no-sense -->
+   <script src="https://unpkg.com/dropbox@5.2.1/dist/Dropbox-sdk.min.js"></script>
+   <script src="mturkautomator.js" type="text/javascript"></script>
+   <script>
+      // check if opencv.js and utils.js is loaded 
+      function openCvReady() {
+         console.log('openCv Loaded');
+      }
+      function utilsReady() {
+         console.log('utils Loaded')
+      }
+   </script>
+   <script src="js/opencv.js" onload="openCvReady();" type="text/javascript"></script> 
+   <script src="js/utils.js" onload="utilsReady();" type="text/javascript"></script>
+   <script> //GLOBAL VARS
+		var audioFrequencyMonkey = 1000;
+		var rewardFrequencyHuman = 5000;
+		var buzzerFrequencyHuman = 100;
+
+		var rewardChan = 0;
+		var buzzerChan = 1;
+
+		var pumpOnTime, pumpFunc;
+
+		var calibrationTime = 0;
+		var numCalibrations = 0;
+
+		var nightlySwitch=0;
+		var nightlySwitchGauss=1;
+		var batteryPercent=[];
+		var trialTime=[];
+
+		var nShapes = 36;
+		var nColors = 36;
+
+		var juiceGain = 1.0;
+		var buzzerGain = 0.3;
+
+		// tablet params
+		var colorRed = [];
+		var colorGreen = [];
+		var colorBlue = [];
+		var grayPoint = [208, 208, 208];
+		var lumContrast = [];
+		var tabletName = "";
+
+		// subject params
+		var frequencySpace = [];
+		var rewardSpace = [];
+
+		var packTest=1;
+		var packSample=1;
+		var colorTest=1;
+		var colorSample=1;
+		var skipSample=1;
+
+   </script>
+   <script src="dropboxStuff.js" type="text/javascript">// DROPBOX STUFF</script>
+   <script src="canvasSetup.js" type="text/javascript">// CANVAS SETUP</script>
+   <script src="imageDisplay.js" type="text/javascript">// IMAGE DISPLAY</script>
+   <script src="stateFuncs.js" type="text/javascript">// STATES</script>
+   <script src="mouseAndTouchEvent.js" type="text/javascript">// MOUSE & TOUCH EVENTS</script>
+   <script src="helperFuncs.js" type="text/javascript"></script>
+</head>
+<!-- ************* BODY *************** -->
+<body style="position:relative; width:100vw; height:100vh; margin:0; padding:0; display:block;">
+  <div style="overscroll-behavior: none;">
+   <video id="video" autoplay style="display: none;"></video> <!-- create variable to save images -->
+   <img id="fixgif" src="https://tunkstuff.net/fixF.png" hidden>
+   <div id="trialcounter"></div>
+   <p id="headsuptext" style="z-index:99; position: absolute; left: 1px; top: 1px; font-size: 20px; color: white; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;"></p>
+   <canvas id="canvasheadsup" width="0" height="0" src="" style="z-index:98; position: absolute; left: 0px; top: 0px; margin:0; padding:0; display:block;"> </canvas>
+   <canvas id="canvas0" width="0" height="0" src="" style="z-index:99; position: absolute; left: 0px; top: 0px; margin:0; padding:0; display:block;"> </canvas>
+   <canvas id="canvas1" width="0" height="0" src="" style="z-index:1; position: absolute; left: 0px; top: 0px; margin:0; padding:0; display:block;"> </canvas>
+   <canvas id="canvas2" width="0" height="0" src="" style="z-index:2; position: absolute; left: 0px; top: 0px; margin:0; padding:0; display:block;"> </canvas>
+   <canvas id="canvas3" width="0" height="0" src="" style="z-index:3; position: absolute; left: 0px; top: 0px; margin:0; padding:0; display:block;"> </canvas>
+   <canvas id="canvas4" width="0" height="0" src="" style="z-index:4; position: absolute; left: 0px; top: 0px; margin:0; padding:0; display:block;"> </canvas>
+   <canvas id="canvas5" width="0" height="0" src="" style="z-index:5; position: absolute; left: 0px; top: 0px; margin:0; padding:0; display:block;"> </canvas>
+   <canvas id="canvas6" width="0" height="0" src="" style="z-index:6; position: absolute; left: 0px; top: 0px; margin:0; padding:0; display:block;"> </canvas>
+   <!--<video id="video" style="z-index:0; position: absolute; right: 0px; top: 0px;" hidden></video>-->
+   <canvas id="canvascaptureobj" width="0" height="0" src="" style="z-index:0; position: absolute; left: 0px; top: 0px; margin:0; padding:0; display:block;"> </canvas>
+   <dialog id="start_dialog">
+      <button id="calibrate_button" style="z-index:50;height:30px;width:200px" type="button">Calibrate reward pump</button>
+      <p>
+         Pump duration        :
+         <!--Pull down menu that will hold file list-->
+         <select id="pumpdur_list" style="height:30px">
+            <option value="-1">--</option>
+         </select>
+      </p>
+      <p>
+         Number of rewards    :
+         <!--Pull down menu that will hold file list-->
+         <select id="numrew_list" style="height:30px">
+            <option value="-1">--</option>
+         </select>
+      </p>
+      <button id="pump_button" style="z-index:50;height:50px;width:150px" type="button">Prime pump</button>
+      <button id="buzzer_button" style="z-index:50;height:50px;width:150px" type="button">Test buzzer</button>
+      <p>
+         Tablet ID     :
+         <!--Pull down menu that will hold file list-->
+         <select id="tabletid_list" style="height:30px">
+            <option value="-1">--</option>
+         </select>
+      </p>
+      <p>
+         Subject ID    :
+         <!--Pull down menu that will hold file list-->
+         <select id="subjid_list" style="height:30px">
+            <option value="-1">--</option>
+         </select>
+      </p>
+      <p>
+         <button id="start_button" style="z-index:50;height:80px;width:200px" type="button">*** Start ***</button>
+      </p>
+   </dialog>
+   <script src="runtimeTask.js" type="text/javascript"></script>
+ </div>
+</body>
+<!-- ************ COMMENT SECTION ************ -->
+<!--
+   2020-04-19 - complete overhaul and reformatting for Monkey Turk 2 experiments - James Cavanaugh
+
+
+     2015-08-26 - Modified by Walid Bendris to use Color-Shape matching paradigm for Bevil Conway
+     This code uses generators & promises from ESM6 harmony to implement a state machine.  This is experimental and only supported on modern browsers (see http://caniuse.com/#feat=promises for full support).
+
+     The reasons for using this approach are twofold:
+
+     (1) Solving the inversion of control with the old way of using async callbacks in javascript (http://blog.getify.com/promises-part-2/)
+     (2) readability of the code (http://davidwalsh.name/async-generators)
+
+     ->(1) makes exception handling much easier
+     ->(2) makes the code easier to edit in the future:
+     		"The main strength of generators is that they provide a single-threaded, synchronous-looking code style, while allowing you to hide the asynchronicity away as an implementation detail. This lets us express in a very natural way what the flow of our program's steps/statements is without simultaneously having to navigate asynchronous syntax and gotchas."
+
+     As of 2014.12.01, generators are not supported in safari and not in iOS (even Chrome for iOS is limited to apple webkit).  Could transpile but better to use a native Chrome environment (i.e. android tablet).
+
+
+     // Load audio webkit, see http://middleearmedia.com/controlling-web-audio-api-oscillators/
+     // var audiocontext = new webkitAudioContext(); // Create audio container with webkit prefix
+
+     // In case you're wondering why you can't use the devicePixelRatio to determine the backing store size, the answer is that they aren't guaranteed to match. Despite presenting the same devicePixelRatio value, Chrome and Safari 6 can and do have entirely different approaches for the backing store size (and therefore the webkitBackingStorePixelRatio) on HiDPI devices. The net result is that we can't rely on devicePixelRatio to know how the browser is going to scale images that are written into the canvas.  http://www.html5rocks.com/en/tutorials/canvas/hidpi/
+
+
+     -->
+<!-- ************ /COMMENT SECTION ************ -->
+</html>
