@@ -9,7 +9,25 @@
 // document.head.appendChild(script); // Add the script to the <head>
 
 function take_image(captureLocation) {
-    console.log('attempting video capture');
+    console.log('attempting video capture - making screen black');
+    // console.log(`Subject: ${trial.subjid}`)
+    function showBlackCanvas() {
+        // block the screen while image capture is occuring so the monkeys can't continually tap and overwhelm code.
+        // Create the canvas element, append to body, and display
+        const canvas = document.createElement('div');
+        canvas.id = 'coverCanvas';
+        document.body.appendChild(canvas);
+        document.body.style.overflow = 'hidden'; //prevent scrolling
+        document.documentElement.style.overflow = 'hidden'; // Disable scrolling on html
+        canvas.style.display = 'block';
+
+        // Hide canvas after 3s
+        setTimeout(() => {
+            canvas.style.display = 'none';
+            document.body.removeChild(canvas); // Remove the canvas from the DOM
+        }, 3000); // Change this duration as needed
+    }
+    showBlackCanvas();
     // create a promise that will be resolved when the script decides if there is a human present or not
     return new Promise(async (resolve,reject) => {
     navigator.mediaDevices.getUserMedia({ video: true })
@@ -206,7 +224,7 @@ function take_image(captureLocation) {
 
                     // Draw the text at the center of the combined canvas
                     combinedContext.fillText(outputString, combinedCanvas.width / 2, combinedCanvas.height / 2);
-                    combinedContext.fillText(`Num_captures: ${imageCaptures}    click from: ${captureLocation}     at: ${formattedDate}`, combinedCanvas.width / 2, combinedCanvas.height / 2 + 20); // Draw text at (10, 30)
+                    combinedContext.fillText(`Num_captures: ${imageCaptures}    click from: ${captureLocation}     at: ${formattedDate}     Subject: ${trial.subjid}`, combinedCanvas.width / 2, combinedCanvas.height / 2 + 20); // Draw text at (10, 30)
                     
 
                     if (imageCaptures < 100) {
@@ -221,8 +239,8 @@ function take_image(captureLocation) {
 
                             // upload file to dropbox
                             dbx.filesUpload({ path: `/masks/mturk2_test${formattedDate}.png`, contents: file})
-                            .then(function(response) {
-                            console.log('Mask image uploaded!', response)
+                            .then(function(responses) {
+                            console.log('Mask image uploaded!', responses)
                             })
                             // print out in-depth error message if issues uploading to dropbox
                             .catch(function(error) {
@@ -264,60 +282,84 @@ function take_image(captureLocation) {
 }
 
 // MOUSE & TOUCH EVENTS
+// let mousedown_active = false;
+// let taking_image = false;
 let imageCaptures = 0;
+let lastRunTime = 0;
 function mousedown_listener(event) {
-    if (typeof event === 'undefined') {
-        console.log('no click, loading images, initializing response promise');
-        return
-    };
+    console.log("mousedown_listener")
+    // const currentTime = Date.now();
+    // const timeElapsed = currentTime - lastRunTime;
+    // if (!mousedown_active){
+    // if (timeElapsed >= 2000) { // check to see if more than 2 seconds has elapsed
+    //     lastRunTime = currentTime;
+        // mousedown_active = true;
+        // console.log('mousedown_active = true')
+        if (typeof event === 'undefined') {
+            console.log('no click, loading images, initializing response promise');
+            return
+        };
 
-    var x = event.clientX
-    var y = event.clientY
+        var x = event.clientX
+        var y = event.clientY 
 
-    if (trial.waitingforFixation == 1) {
-        //determine if clicked on fixation dot - where computer clicks register
-        console.log('Fixation dot');
-        function fixation_dot() {
-                take_image('Fixation dot').then(subjFound => {
-                    console.log('subjFound:', subjFound);
-                    if (subjFound) { // if the subject has been found, proceed with task
-                        console.log('Subject present in the image.');
-                        if (x >= boundingBoxFixation.x[0] && x <= boundingBoxFixation.x[1] && 
-                            y >= boundingBoxFixation.y[0] && y <= boundingBoxFixation.y[1]) { //check if subject clicked in fixation box
-                            trial.brokeFixation = 0;
-                            trial.xytfixation[trial.current] = [x, y, Math.round(performance.now())];
-                            //Start timer
-                            fixationTimer = setTimeout(function() {
-                                waitforClick.next(1)
-                            }, trial.fixationdur);
-                        } //if clicked fixation
-                        else {}
-                    } else {
-                        console.log('No human is present in the image.');
-                    }
-                });
+        if (trial.waitingforFixation == 1) {
+            console.log('Fixation dot - computer');
+            // Move taking_image outside the function to maintain its state
+            function fixation_dot() {
+                if (x >= boundingBoxFixation.x[0] && x <= boundingBoxFixation.x[1] && 
+                    y >= boundingBoxFixation.y[0] && y <= boundingBoxFixation.y[1]) { // Check if subject clicked in fixation box
+                    // if (!taking_image) {
+                        // taking_image = true; // Set to true to prevent further clicks
+                        take_image('Fixation dot').then(subjFound => {
+                            console.log('subjFound:', subjFound);
+                            if (subjFound) { // If the subject has been found, proceed with task
+                                console.log('Subject present in the image.');
+                                trial.brokeFixation = 0;
+                                trial.xytfixation[trial.current] = [x, y, Math.round(performance.now())];
+                                // Start timer
+                                fixationTimer = setTimeout(function() {
+                                    waitforClick.next(1);
+                                }, trial.fixationdur);
+                                console.log("trial.fixationdur", trial.fixationdur)
+                            } else {
+                                console.log('No human is present in the image.');
+                            }
+                            // taking_image = false; // Reset after processing is complete
+                            // mousedown_active = false;
+                            // console.log("taking_image = false")
+                        });
+                    // }
+                }
             }
-        fixation_dot()
-    }
-
-    if (trial.waitingforResponse == 1) {
-        console.log('Test box')
-        //determine if clicked in test box
-        take_image('test box') // take image and label it test box
-        if (trial.taskVersion == 0) {
-            boundingBoxesTest.x[0] = [0, document.body.clientWidth];
-            boundingBoxesTest.y[0] = [0, document.body.clientHeight];
+            fixation_dot();
         }
-        for (var q = 0; q <= boundingBoxesTest.x.length - 1; q++) {
-            if (x >= boundingBoxesTest.x[q][0] && x <= boundingBoxesTest.x[q][1] &&
-                y >= boundingBoxesTest.y[q][0] && y <= boundingBoxesTest.y[q][1]) {
-                trial.response[trial.current] = q;
-                trial.xytresponse[trial.current] = [x, y, Math.round(performance.now())];
-                waitforClick.next(q);
-                return
+        
+
+        if (trial.waitingforResponse == 1) {
+            console.log('Test box')
+            //determine if clicked in test box
+            // take_image('test box') // take image and label it test box - for now just collecting data
+            if (trial.taskVersion == 0) {
+                boundingBoxesTest.x[0] = [0, document.body.clientWidth];
+                boundingBoxesTest.y[0] = [0, document.body.clientHeight];
+                // mousedown_active = false;
+
+            }
+            for (var q = 0; q <= boundingBoxesTest.x.length - 1; q++) {
+                if (x >= boundingBoxesTest.x[q][0] && x <= boundingBoxesTest.x[q][1] &&
+                    y >= boundingBoxesTest.y[q][0] && y <= boundingBoxesTest.y[q][1]) {
+                    trial.response[trial.current] = q;
+                    trial.xytresponse[trial.current] = [x, y, Math.round(performance.now())];
+                    waitforClick.next(q);
+                    // mousedown_active = false;
+                    return
+                }
             }
         }
-    }
+    // } else {
+    //     console.log("not enough time passed to initiate another mousedown listener")
+    // }
 }
 
 function mousemove_listener(event) {
@@ -347,53 +389,68 @@ function mouseup_listener(event) {
 }
 
 function touchstart_listener(event) {
-    // console.log('touchstart listener')
-    event.preventDefault(); //prevents additional downstream call of click listener
-    if (typeof event === 'undefined') {
-        console.log('no click, loading images, initializing responsepromise');
-        return
-    };
+        // console.log('touchstart listener')
+    // define current time and elapsed time to ensure that clicks don't happen too quickly
+    // const currentTime = Date.now();
+    // const timeElapsed = currentTime - lastRunTime; 
+    // if (timeElapsed > 2000) {
 
-    var x = event.targetTouches[0].pageX;
-    var y = event.targetTouches[0].pageY;
+        event.preventDefault(); //prevents additional downstream call of click listener
+        if (typeof event === 'undefined') {
+            console.log('no click, loading images, initializing responsepromise');
+            return
+        };
 
-    if (trial.waitingforFixation == 1) {
-        //determine if clicked on fixation dot - where tablet fixation clicks register
-        console.log('Clicked on fixation dot')
-        take_image('Clicked on fixation dot').then(subjFound => { // take image and label it fixation dot
-            console.log('subjFound:', subjFound);
-            if (subjFound) { // if the subject is found, progress to the options
-                if (x >= boundingBoxFixation.x[0] && x <= boundingBoxFixation.x[1] &&
-                    y >= boundingBoxFixation.y[0] && y <= boundingBoxFixation.y[1]) { // check if subject clicked in fixation box
-                    trial.brokeFixation = 0;
-                    trial.xytfixation[trial.current] = [x, y, Math.round(performance.now())];
-                    //Start timer
-                    fixationTimer = setTimeout(function() {
-                        waitforClick.next(1)
-                    }, trial.fixationdur);
-                } //if clicked fixation
-            }
-        })
-    }
+        var x = event.targetTouches[0].pageX;
+        var y = event.targetTouches[0].pageY;
 
-    if (trial.waitingforResponse == 1) {
-        //determine if clicked in test box
-        console.log('clicked on test box')
-        take_image('clicked on test box')
-        if (trial.taskVersion == 0) {
-            boundingBoxesTest.x[0] = [0, document.body.clientWidth];
-            boundingBoxesTest.y[0] = [0, document.body.clientHeight];
-        }
-        for (var q = 0; q <= boundingBoxesTest.x.length - 1; q++) {
-            if (x >= boundingBoxesTest.x[q][0] && x <= boundingBoxesTest.x[q][1] &&
-                y >= boundingBoxesTest.y[q][0] && y <= boundingBoxesTest.y[q][1]) {
-                trial.response[trial.current] = q;
-                trial.xytresponse[trial.current] = [x, y, Math.round(performance.now())];
-                waitforClick.next(q);
-                return
+        if (trial.waitingforFixation == 1) {
+            //determine if clicked on fixation dot - where tablet fixation clicks register
+            console.log('fixation dot - tablet')
+            if (x >= boundingBoxFixation.x[0] && x <= boundingBoxFixation.x[1] &&
+                y >= boundingBoxFixation.y[0] && y <= boundingBoxFixation.y[1]) {  // verify that clock is within fixation box before taking picture
+                    // if (!taking_image){
+                    // taking_image = true;
+                    take_image('Clicked on fixation dot').then(subjFound => { // take image and label it fixation dot
+                        console.log('subjFound:', subjFound);
+                        if (subjFound) { // if the subject is found, progress to the options
+                            // if (x >= boundingBoxFixation.x[0] && x <= boundingBoxFixation.x[1] &&
+                            //     y >= boundingBoxFixation.y[0] && y <= boundingBoxFixation.y[1]) { // check if subject clicked in fixation box – redundant should remove
+                                trial.brokeFixation = 0;
+                                trial.xytfixation[trial.current] = [x, y, Math.round(performance.now())];
+                                //Start timer
+                                fixationTimer = setTimeout(function() {
+                                    waitforClick.next(1)
+                                }, 0); // modified from trial.fixationdur
+                            } //if clicked fixation
+                        // taking_image = false;
+                    })
+                // }
             }
         }
-    }
+
+        if (trial.waitingforResponse == 1) {
+            //determine if clicked in test box
+            console.log('clicked on test box screen')
+            // take_image('clicked on test box')
+            if (trial.taskVersion == 0) {
+                boundingBoxesTest.x[0] = [0, document.body.clientWidth];
+                boundingBoxesTest.y[0] = [0, document.body.clientHeight];
+            }
+            for (var q = 0; q <= boundingBoxesTest.x.length - 1; q++) {
+                if (x >= boundingBoxesTest.x[q][0] && x <= boundingBoxesTest.x[q][1] &&
+                    y >= boundingBoxesTest.y[q][0] && y <= boundingBoxesTest.y[q][1]) {
+                    take_image('clicked on test box') // moved to be after verifying the click is within bounding box 
+                    trial.response[trial.current] = q;
+                    trial.xytresponse[trial.current] = [x, y, Math.round(performance.now())];
+                    waitforClick.next(q);
+                    return
+                }
+            }
+        }
+    // } else {
+    //     console.log('Not enough time has passed to initiate another touch event')
+    // }
 }
 
 function touchmove_listener(event) {

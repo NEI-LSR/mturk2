@@ -235,7 +235,7 @@ var trialhistory = {
 // VARIABLES end
 
 // Screen, Video, & Audio initialization begin
-// Prevent window scrolling and bounce back effect
+// Prevent window scrolling and bounce back effect - commented out because just returning error
 document.body.addEventListener('touchmove', function(event) {
     event.preventDefault();
 }, false);
@@ -262,6 +262,8 @@ var canvasScale = devicePixelRatio / backingStoreRatio;
 navigator.getMedia = (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia);
 
 //Monitor Battery - from: http://www.w3.org/TR/battery-status/
+
+try{
 navigator.getBattery().then(function(batteryobj) {
     battery.ldt[battery.current] = [batteryobj.level, batteryobj.dischargingTime, Math.round(performance.now())];
     battery.current++;
@@ -271,6 +273,9 @@ navigator.getBattery().then(function(batteryobj) {
         battery.current++;
     })
 });
+} catch (error) {
+    console.error('Error accessing battery information', error);
+} // catch added on 9/16/24 to see if it would prevent the grey screen when you first access webpage after a while
 
 // Screen, Video, & Audio initialization end
 

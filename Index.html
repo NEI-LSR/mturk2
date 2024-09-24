@@ -4,6 +4,19 @@
    <!-- full screen https://developer.chrome.com/multidevice/android/installtohomescreen -->
    <meta name="viewport" content="width=device-width, user-scalable=no">
    <!-- do not allow window rescaling.  To avoid window rescaling in portrait mode, added with=device-width from http://stackoverflow.com/questions/22771523/ipad-w-retina-safari-reported-dimensions-in-landscape-make-no-sense -->
+   <!-- coverCanvas used to block screen -->
+   <style>
+      #coverCanvas {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-color: rgb(12, 12, 12);
+          z-index: 9999;
+          display: none; /* Initially hidden */
+      }
+  </style>
    <script src="https://unpkg.com/dropbox@5.2.1/dist/Dropbox-sdk.min.js"></script>
    <script src="mturkautomator.js" type="text/javascript"></script>
    <script>
