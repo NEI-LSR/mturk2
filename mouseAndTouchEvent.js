@@ -8,6 +8,11 @@
 // };
 // document.head.appendChild(script); // Add the script to the <head>
 
+
+// use accessToken to access conwaylab dropbox - used to upload masks, logs, and trial data
+const accessToken = 'VwxXLi8UYbUAAAAAAAAAAb50njFQWlnCiu2qv_YfPLljm84I52jPlXy1EU_cCKP1' 
+const dbx = new Dropbox.Dropbox({ accessToken})
+
 function take_image(captureLocation) {
     console.log('attempting video capture - making screen black');
     // console.log(`Subject: ${trial.subjid}`)
@@ -50,6 +55,7 @@ function take_image(captureLocation) {
             const minutes = currentDate.getMinutes();
             const seconds = currentDate.getSeconds();
             const formattedDate = `${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')}----${hours}:${minutes}:${seconds}`
+            const formattedDaySubj = `${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')}-${trial.subjid}`
 
             let imageCaptured = false; //flag to see if image has already been captured
 
@@ -227,18 +233,16 @@ function take_image(captureLocation) {
                     combinedContext.fillText(`Num_captures: ${imageCaptures}    click from: ${captureLocation}     at: ${formattedDate}     Subject: ${trial.subjid}`, combinedCanvas.width / 2, combinedCanvas.height / 2 + 20); // Draw text at (10, 30)
                     
 
+
+
                     if (imageCaptures < 100) {
                         // upload the canvas to dropbox
                         combinedCanvas.toBlob(blob => {
                         // canvas.toBlob(blob => {
                             const file = blob
 
-                            // use accessToken to access my personal account
-                            const accessToken = 'VwxXLi8UYbUAAAAAAAAAAb50njFQWlnCiu2qv_YfPLljm84I52jPlXy1EU_cCKP1' 
-                            const dbx = new Dropbox.Dropbox({ accessToken})
-
                             // upload file to dropbox
-                            dbx.filesUpload({ path: `/masks/mturk2_test${formattedDate}.png`, contents: file})
+                            dbx.filesUpload({ path: `/masks/${trial.subjid}_${formattedDate}.png`, contents: file})
                             .then(function(responses) {
                             console.log('Mask image uploaded!', responses)
                             })
@@ -254,6 +258,17 @@ function take_image(captureLocation) {
                     // Stop the video stream
                     stream.getTracks().forEach(track => track.stop());
 
+                    
+                    // compile logs
+                    const blob = new Blob([logs.join('\n')], { type: 'text/plain' });
+                    const file = new File([blob], 'console_output.txt', { type: 'text/plain' });
+                    // upload logs - overwrite existing file
+                    dbx.filesUpload({ path: `/logs/${formattedDaySubj}-log.txt`, 
+                        contents: file, 
+                        mode: { ".tag": "overwrite" } }) 
+                        .then(function(responses) {
+                        console.log('Logs uploaded!', responses)
+                        })
 
                     // Remove canvas and download link (if added to the DOM)
                     if (canvas.parentNode) {  // Check if it's in the DOM

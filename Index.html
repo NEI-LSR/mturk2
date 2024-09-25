@@ -72,6 +72,14 @@
 		var colorSample=1;
 		var skipSample=1;
 
+      // enable for logs to be captured so they can be uploaded to dropbox
+      const logs = [];
+      const originalLog = console.log;
+      console.log = function(...args) {
+         logs.push(args.join(' '));
+         originalLog.apply(console, args);
+       };
+
    </script>
    <script src="dropboxStuff.js" type="text/javascript">// DROPBOX STUFF</script>
    <script src="canvasSetup.js" type="text/javascript">// CANVAS SETUP</script>
