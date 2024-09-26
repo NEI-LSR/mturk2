@@ -13,6 +13,26 @@
 const accessToken = 'VwxXLi8UYbUAAAAAAAAAAb50njFQWlnCiu2qv_YfPLljm84I52jPlXy1EU_cCKP1' 
 const dbx = new Dropbox.Dropbox({ accessToken})
 
+function save_logs() {
+    // find date and subject for the log's file name to be uploaded to dropbox
+    const currentDate = new Date();
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth() + 1;
+    const day = currentDate.getDate();
+    const formattedDaySubj = `${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')}-${trial.subjid}`
+
+    // compile logs - the console.log function is modified in index.html
+    const blob = new Blob([logs.join('\n')], { type: 'text/plain' });
+    const file = new File([blob], 'console_output.txt', { type: 'text/plain' });
+    // upload logs - overwrite existing file
+    dbx.filesUpload({ path: `/logs/${formattedDaySubj}-log.txt`, 
+        contents: file, 
+        mode: { ".tag": "overwrite" } }) 
+        .then(function(responses) {
+        console.log('Logs uploaded!', responses)
+        })
+}
+
 function take_image(captureLocation) {
     console.log('attempting video capture - making screen black');
     // console.log(`Subject: ${trial.subjid}`)
@@ -55,7 +75,6 @@ function take_image(captureLocation) {
             const minutes = currentDate.getMinutes();
             const seconds = currentDate.getSeconds();
             const formattedDate = `${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')}----${hours}:${minutes}:${seconds}`
-            const formattedDaySubj = `${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')}-${trial.subjid}`
 
             let imageCaptured = false; //flag to see if image has already been captured
 
@@ -149,12 +168,12 @@ function take_image(captureLocation) {
                     [gold_canvas, gold_context] = createMaskAndCanvas(videoElement);
                     [purple_canvas, purple_context] = createMaskAndCanvas(videoElement);
 
-                    let maskGreen = createColorMask(hsv,[144/2, 52, 0, 0], [184/2, 255, 255, 0]);
-                    let maskRed = createColorMask(hsv, [270/2, 0.3*255, 0, 0], [352/2, 255, 255, 0]);  // [0-180, 0-255, 0-255, ?]
-                    let maskBlue = createColorMask(hsv, [94, 80, 0, 0], [126, 255, 255, 0]);
-                    let maskOrange = createColorMask(hsv, [0/2, 0.3*255, 0, 0], [20/2, 255, 255, 0]);
-                    let maskGold = createColorMask(hsv, [31/2, 0.3*255, 0, 0], [51/2, 255, 255, 0]);
-                    let maskPurple = createColorMask(hsv, [240/2, 0.3*255, 0, 0], [300/2, 255, 255, 0]); 
+                    let maskGreen = createColorMask(hsv,[144/2, 0, 0, 0], [184/2, 255, 255, 0]); // [0-180, 0-255, 0-255, ?]
+                    let maskRed = createColorMask(hsv, [0, 0, 0, 0], [40/2, 255, 255, 0]);  
+                    let maskBlue = createColorMask(hsv, [94, 0, 0, 0], [126, 255, 255, 0]);
+                    let maskOrange = createColorMask(hsv, [0/2, 0, 0, 0], [20/2, 255, 255, 0]);
+                    let maskGold = createColorMask(hsv, [31/2, 0, 0, 0], [51/2, 255, 255, 0]);
+                    let maskPurple = createColorMask(hsv, [265/2, 0, 0, 0], [360/2, 255, 255, 0]);
                     
                     // count the number of pixels in each mask
                     let redPixels = cv.countNonZero(maskRed);
@@ -258,22 +277,15 @@ function take_image(captureLocation) {
                     // Stop the video stream
                     stream.getTracks().forEach(track => track.stop());
 
-                    
-                    // compile logs
-                    const blob = new Blob([logs.join('\n')], { type: 'text/plain' });
-                    const file = new File([blob], 'console_output.txt', { type: 'text/plain' });
-                    // upload logs - overwrite existing file
-                    dbx.filesUpload({ path: `/logs/${formattedDaySubj}-log.txt`, 
-                        contents: file, 
-                        mode: { ".tag": "overwrite" } }) 
-                        .then(function(responses) {
-                        console.log('Logs uploaded!', responses)
-                        })
 
                     // Remove canvas and download link (if added to the DOM)
                     if (canvas.parentNode) {  // Check if it's in the DOM
                         canvas.parentNode.removeChild(canvas); 
                     }
+
+                    // save logs
+                    save_logs();
+
                     // if (downloadLink.parentNode) { 
                     //     downloadLink.parentNode.removeChild(downloadLink);
                     // }
@@ -326,6 +338,7 @@ function mousedown_listener(event) {
                     y >= boundingBoxFixation.y[0] && y <= boundingBoxFixation.y[1]) { // Check if subject clicked in fixation box
                     // if (!taking_image) {
                         // taking_image = true; // Set to true to prevent further clicks
+                        // take image, make mask, save logs in take_image()
                         take_image('Fixation dot').then(subjFound => {
                             console.log('subjFound:', subjFound);
                             if (subjFound) { // If the subject has been found, proceed with task
@@ -355,6 +368,8 @@ function mousedown_listener(event) {
             console.log('Test box')
             //determine if clicked in test box
             // take_image('test box') // take image and label it test box - for now just collecting data
+            // save logs
+            save_logs();
             if (trial.taskVersion == 0) {
                 boundingBoxesTest.x[0] = [0, document.body.clientWidth];
                 boundingBoxesTest.y[0] = [0, document.body.clientHeight];
@@ -426,6 +441,7 @@ function touchstart_listener(event) {
                 y >= boundingBoxFixation.y[0] && y <= boundingBoxFixation.y[1]) {  // verify that clock is within fixation box before taking picture
                     // if (!taking_image){
                     // taking_image = true;
+                    // take image, make masks, save logs
                     take_image('Clicked on fixation dot').then(subjFound => { // take image and label it fixation dot
                         console.log('subjFound:', subjFound);
                         if (subjFound) { // if the subject is found, progress to the options
