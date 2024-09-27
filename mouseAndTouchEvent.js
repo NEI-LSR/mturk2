@@ -14,24 +14,33 @@ const accessToken = 'VwxXLi8UYbUAAAAAAAAAAb50njFQWlnCiu2qv_YfPLljm84I52jPlXy1EU_
 const dbx = new Dropbox.Dropbox({ accessToken})
 
 function save_logs() {
-    // find date and subject for the log's file name to be uploaded to dropbox
+    // Find date and subject for the log's file name to be uploaded to Dropbox
     const currentDate = new Date();
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth() + 1;
     const day = currentDate.getDate();
-    const formattedDaySubj = `${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')}-${trial.subjid}`
+    const formattedDaySubj = `${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')}-${trial.subjid}`;
 
-    // compile logs - the console.log function is modified in index.html
-    const blob = new Blob([logs.join('\n')], { type: 'text/plain' });
+    // Compile logs and error logs
+    const allLogs = [...logs].join('\n');
+    const blob = new Blob([allLogs], { type: 'text/plain' });
     const file = new File([blob], 'console_output.txt', { type: 'text/plain' });
-    // upload logs - overwrite existing file
-    dbx.filesUpload({ path: `/logs/${formattedDaySubj}-log.txt`, 
+
+    // Upload logs - overwrite existing file
+    dbx.filesUpload({
+        path: `/logs/${formattedDaySubj}-log.txt`, 
         contents: file, 
-        mode: { ".tag": "overwrite" } }) 
-        .then(function(responses) {
-        console.log('Logs uploaded!', responses)
-        })
+        mode: { ".tag": "overwrite" }
+    })
+    .then(function(responses) {
+        console.log('Logs uploaded!', responses);
+    })
+    .catch(function(error) {
+        console.error('Error uploading logs:', error);
+    });
 }
+
+
 
 function take_image(captureLocation) {
     console.log('attempting video capture - making screen black');
@@ -52,6 +61,10 @@ function take_image(captureLocation) {
             document.body.removeChild(canvas); // Remove the canvas from the DOM
         }, 3000); // Change this duration as needed
     }
+
+    // cause error intentionally 
+    // console.error("Test error");
+
     showBlackCanvas();
     // create a promise that will be resolved when the script decides if there is a human present or not
     return new Promise(async (resolve,reject) => {

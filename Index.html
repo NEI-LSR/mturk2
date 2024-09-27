@@ -78,7 +78,15 @@
       console.log = function(...args) {
          logs.push(args.join(' '));
          originalLog.apply(console, args);
-       };
+         };
+       // also enable for errors to be captured
+      const originalError = console.error;
+      console.error = function(...args) {
+         // logs.push({ type: 'error', message: args.join(' ') });
+         console.log('Error:')
+         logs.push(args.join(' '));
+         originalError.apply(console, args);
+         };
 
    </script>
    <script src="dropboxStuff.js" type="text/javascript">// DROPBOX STUFF</script>
