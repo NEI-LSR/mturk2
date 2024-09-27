@@ -1,5 +1,7 @@
 // CANVAS SETUP
 // Sync: Setup heads-up display canvas
+
+
 function setupCanvasHeadsUp() {
     canvasobj = document.getElementById("canvasheadsup");
 
@@ -19,6 +21,25 @@ function setupCanvasHeadsUp() {
 
     canvasobj.addEventListener('mousedown', mousedown_listener, false);
     canvasobj.addEventListener('touchstart', touchstart_listener, false);
+
+    if (automatic_progress == true){
+        // Start triggering mousedown events every 0.1 seconds
+        const intervalId = setInterval(() => {
+            const event = new MouseEvent('mousedown', {
+                bubbles: true,
+                cancelable: true,
+                view: window
+            });
+            canvasobj.dispatchEvent(event);
+        }, 1000); // 100 milliseconds
+
+        // Optionally, stop the interval after a certain condition
+        // For example, you could use a timeout to stop it after 5 seconds:
+        // setTimeout(() => {
+        //     clearInterval(intervalId);
+        //     console.log('Stopped triggering mousedown events');
+        // }, 5000); // Stop after 5 seconds
+    }
 }
 
 // Sync: Setup canvas

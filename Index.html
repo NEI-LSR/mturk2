@@ -72,21 +72,8 @@
 		var colorSample=1;
 		var skipSample=1;
 
-      // modify console.log to enable for logs to be captured so they can be uploaded to dropbox
-      const logs = [];
-      const originalLog = console.log;
-      console.log = function(...args) {
-         logs.push(args.join(' '));
-         originalLog.apply(console, args);
-         };
-       // also enable for errors to be captured
-      const originalError = console.error;
-      console.error = function(...args) {
-         // logs.push({ type: 'error', message: args.join(' ') });
-         console.log('Error:')
-         logs.push(args.join(' '));
-         originalError.apply(console, args);
-         };
+      var automatic_progress = false // if true, task automatically progresses for debugging
+
 
    </script>
    <script src="dropboxStuff.js" type="text/javascript">// DROPBOX STUFF</script>

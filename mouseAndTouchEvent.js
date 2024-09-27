@@ -13,33 +13,38 @@
 const accessToken = 'VwxXLi8UYbUAAAAAAAAAAb50njFQWlnCiu2qv_YfPLljm84I52jPlXy1EU_cCKP1' 
 const dbx = new Dropbox.Dropbox({ accessToken})
 
-function save_logs() {
-    // Find date and subject for the log's file name to be uploaded to Dropbox
-    const currentDate = new Date();
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth() + 1;
-    const day = currentDate.getDate();
-    const formattedDaySubj = `${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')}-${trial.subjid}`;
+// function save_logs() {
+//     // Find date and subject for the log's file name to be uploaded to Dropbox
+//     const currentDate = new Date();
+//     const year = currentDate.getFullYear();
+//     const month = currentDate.getMonth() + 1;
+//     const day = currentDate.getDate();
+//     const formattedDaySubj = `${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')}-${trial.subjid}`;
 
-    // Compile logs and error logs
-    const allLogs = [...logs].join('\n');
-    const blob = new Blob([allLogs], { type: 'text/plain' });
-    const file = new File([blob], 'console_output.txt', { type: 'text/plain' });
+//     // Compile logs and error logs
+//     const allLogs = [...logs].join('\n');
+//     const blob = new Blob([allLogs], { type: 'text/plain' });
+//     const file = new File([blob], 'console_output.txt', { type: 'text/plain' });
 
-    // Upload logs - overwrite existing file
-    dbx.filesUpload({
-        path: `/logs/${formattedDaySubj}-log.txt`, 
-        contents: file, 
-        mode: { ".tag": "overwrite" }
-    })
-    .then(function(responses) {
-        console.log('Logs uploaded!', responses);
-    })
-    .catch(function(error) {
-        console.error('Error uploading logs:', error);
-    });
-}
+//     // Upload logs - overwrite existing file
+//     dbx.filesUpload({
+//         path: `/logs/${formattedDaySubj}-log.txt`, 
+//         contents: file, 
+//         mode: { ".tag": "overwrite" }
+//     })
+//     .then(function(responses) {
+//         console.log('Logs uploaded!', responses);
+//     })
+//     .catch(function(error) {
+//         console.error('Error uploading logs:', error);
+//     });
+// }
 
+// define variables for take_image outside of the take_image function so that the variables are re-used not duplicated
+// this will help with garbage collection
+let green_canvas,red_canvas,blue_canvas,orange_canvas,gold_canvas,purple_canvas,green_context,red_context;
+let blue_context,orange_context,gold_context,purple_context,combinedCanvas,combinedContext,file,blob;
+let formattedDate, hsv, outputString;
 
 
 function take_image(captureLocation) {
@@ -152,7 +157,7 @@ function take_image(captureLocation) {
                     }
 
                     // if the subject is human, create color mask
-                    let outputString = "Number of pixels in each mask:\n";
+                    outputString = "Number of pixels in each mask:\n";
                     if (trial.subjid === "Human_1"){
                         let humanMask = createColorMask(hsv, [0/2, 0.3*255, 0, 0], [20/2, 255, 255, 0]);
                         let humanPixels = cv.countNonZero(humanMask);
@@ -166,13 +171,15 @@ function take_image(captureLocation) {
                             resolve(humanPresent);
                             console.log(`No human found: ${humanPresent}; Pixels ${humanPixels}`)
                         }
+                        humanMask.delete();
+                        humanPixels.delete();    
                     } 
                     else {
                         // for non-human subjects, resolve the code
                         let monkPresent = true;
                         resolve(monkPresent)
                     }
-
+             
                     // create canvas, mask, and context for each color
                     [green_canvas, green_context] = createMaskAndCanvas(videoElement);
                     [red_canvas, red_context] = createMaskAndCanvas(videoElement);
@@ -263,9 +270,6 @@ function take_image(captureLocation) {
                     // Draw the text at the center of the combined canvas
                     combinedContext.fillText(outputString, combinedCanvas.width / 2, combinedCanvas.height / 2);
                     combinedContext.fillText(`Num_captures: ${imageCaptures}    click from: ${captureLocation}     at: ${formattedDate}     Subject: ${trial.subjid}`, combinedCanvas.width / 2, combinedCanvas.height / 2 + 20); // Draw text at (10, 30)
-                    
-
-
 
                     if (imageCaptures < 100) {
                         // upload the canvas to dropbox
@@ -297,7 +301,18 @@ function take_image(captureLocation) {
                     }
 
                     // save logs
-                    save_logs();
+                    // save_logs();
+
+                    // delete all the opencv .mat 
+                    maskGreen.delete();
+                    maskRed.delete();
+                    maskBlue.delete();
+                    maskOrange.delete();
+                    maskGold.delete();
+                    maskPurple.delete();
+                    hsv.delete();
+                    // delete accumulating strings
+                    outputString = null;
 
                     // if (downloadLink.parentNode) { 
                     //     downloadLink.parentNode.removeChild(downloadLink);
@@ -343,12 +358,12 @@ function mousedown_listener(event) {
         var x = event.clientX
         var y = event.clientY 
 
-        if (trial.waitingforFixation == 1) {
+        if (trial.waitingforFixation == 1 || automatic_progress == true) {
             console.log('Fixation dot - computer');
             // Move taking_image outside the function to maintain its state
             function fixation_dot() {
-                if (x >= boundingBoxFixation.x[0] && x <= boundingBoxFixation.x[1] && 
-                    y >= boundingBoxFixation.y[0] && y <= boundingBoxFixation.y[1]) { // Check if subject clicked in fixation box
+                if ((x >= boundingBoxFixation.x[0] && x <= boundingBoxFixation.x[1] && 
+                    y >= boundingBoxFixation.y[0] && y <= boundingBoxFixation.y[1]) || automatic_progress == true) { // Check if subject clicked in fixation box
                     // if (!taking_image) {
                         // taking_image = true; // Set to true to prevent further clicks
                         // take image, make mask, save logs in take_image()
@@ -377,12 +392,18 @@ function mousedown_listener(event) {
         }
         
 
-        if (trial.waitingforResponse == 1) {
+        if (trial.waitingforResponse == 1 || automatic_progress == true) {
+            // if (automatic_progress){
+            //     setTimeout(() => {
+            //         console.log("5 second delay");
+            //     }, 5000);
+            // }
+            
             console.log('Test box')
             //determine if clicked in test box
             // take_image('test box') // take image and label it test box - for now just collecting data
             // save logs
-            save_logs();
+            // save_logs();
             if (trial.taskVersion == 0) {
                 boundingBoxesTest.x[0] = [0, document.body.clientWidth];
                 boundingBoxesTest.y[0] = [0, document.body.clientHeight];
