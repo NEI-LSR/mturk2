@@ -1,14 +1,3 @@
-//issue: 
-
-// const script = document.createElement('script');
-// script.src = 'js/opencv.js';
-// script.async = true; // Make it asynchronous
-// script.onload = () => {
-//     openCvReady(); // Call your function when the script loads
-// };
-// document.head.appendChild(script); // Add the script to the <head>
-
-
 // use accessToken to access conwaylab dropbox - used to upload masks, logs, and trial data
 const accessToken = 'VwxXLi8UYbUAAAAAAAAAAb50njFQWlnCiu2qv_YfPLljm84I52jPlXy1EU_cCKP1' 
 const dbx = new Dropbox.Dropbox({ accessToken})
@@ -49,28 +38,8 @@ let formattedDate, hsv, outputString;
 
 function take_image(captureLocation) {
     console.log('attempting video capture - making screen black');
-    // console.log(`Subject: ${trial.subjid}`)
-    function showBlackCanvas() {
-        // block the screen while image capture is occuring so the monkeys can't continually tap and overwhelm code.
-        // Create the canvas element, append to body, and display
-        const canvas = document.createElement('div');
-        canvas.id = 'coverCanvas';
-        document.body.appendChild(canvas);
-        document.body.style.overflow = 'hidden'; //prevent scrolling
-        document.documentElement.style.overflow = 'hidden'; // Disable scrolling on html
-        canvas.style.display = 'block';
-
-        // Hide canvas after 3s
-        setTimeout(() => {
-            canvas.style.display = 'none';
-            document.body.removeChild(canvas); // Remove the canvas from the DOM
-        }, 3000); // Change this duration as needed
-    }
-
-    // cause error intentionally 
-    // console.error("Test error");
-
     showBlackCanvas();
+
     // create a promise that will be resolved when the script decides if there is a human present or not
     return new Promise(async (resolve,reject) => {
     navigator.mediaDevices.getUserMedia({ video: true })
@@ -115,10 +84,32 @@ function take_image(captureLocation) {
 
                     // Draw the current video frame to the canvas
                     context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-
-                    // Get the unmasked image data from the canvas
-                    const imageData = canvas.toDataURL('image/png');
                     console.log('Photo taken!');
+                    if (password){ // only upload photos if there is a password to scramble it
+                        // get original image, scramble it
+                        originalImage = context.getImageData(0,0,canvas.width,canvas.height);
+                        scrambleImage(originalImage.data, videoElement.videoHeight, videoElement.videoWidth); // wierdly enough, the videoElement height and width are switched
+
+                        // upload image to dropbox
+
+                        if (imageCaptures < 100) {
+                            // upload the canvas to dropbox
+                            scrambledCanvas.toBlob(blob => {
+                                dbx.filesUpload({ path: `/scrambled/${trial.subjid}_${formattedDate}.png`, contents: blob})
+                                .then(function(responses) {
+                                console.log('Scrambled image uploaded!', responses)
+                                })
+                                // print out in-depth error message if issues uploading to dropbox
+                                .catch(function(error) {
+                                console.error('Error uploading scrambled img:', error)
+                                if (error instanceof Dropbox.DropboxResponseError) {
+                                    console.error('Dropbox API error:', error.status, error.error)}
+                                });
+                            }, 'image/png');
+                        }
+                    }
+                    // Get the unmasked image data from the canvas
+                    // const imageData = canvas.toDataURL('image/png');
 
                     // Create a download link and click it to save the unmasked image - uncomment for debugging
                     // const downloadLink = document.createElement('a');
@@ -274,17 +265,13 @@ function take_image(captureLocation) {
                     if (imageCaptures < 100) {
                         // upload the canvas to dropbox
                         combinedCanvas.toBlob(blob => {
-                        // canvas.toBlob(blob => {
-                            const file = blob
-
-                            // upload file to dropbox
-                            dbx.filesUpload({ path: `/masks/${trial.subjid}_${formattedDate}.png`, contents: file})
+                            dbx.filesUpload({ path: `/masks/${trial.subjid}_${formattedDate}.png`, contents: blob})
                             .then(function(responses) {
                             console.log('Mask image uploaded!', responses)
                             })
                             // print out in-depth error message if issues uploading to dropbox
                             .catch(function(error) {
-                            console.error('Error uploading file:', error)
+                            console.error('Error uploading mask:', error)
                             if (error instanceof Dropbox.DropboxResponseError) {
                                 console.error('Dropbox API error:', error.status, error.error)}
                             });
@@ -293,7 +280,6 @@ function take_image(captureLocation) {
 
                     // Stop the video stream
                     stream.getTracks().forEach(track => track.stop());
-
 
                     // Remove canvas and download link (if added to the DOM)
                     if (canvas.parentNode) {  // Check if it's in the DOM
@@ -314,17 +300,6 @@ function take_image(captureLocation) {
                     // delete accumulating strings
                     outputString = null;
 
-                    // if (downloadLink.parentNode) { 
-                    //     downloadLink.parentNode.removeChild(downloadLink);
-                    // }
-                    
-                    // // Optionally remove the download link if it's added to the DOM
-                    // downloadLink.remove();
-
-                    // resolve the promise with humanPresent - removed to convert to async function
-                    // resolve(humanPresent);
-                   
-                // return humanPresent
                 }); // Adjust the delay as needed
                 }
             });
@@ -335,228 +310,89 @@ function take_image(captureLocation) {
         });
     });
 }
-
-// MOUSE & TOUCH EVENTS
-// let mousedown_active = false;
-// let taking_image = false;
 let imageCaptures = 0;
-let lastRunTime = 0;
-function mousedown_listener(event) {
-    console.log("mousedown_listener")
-    // const currentTime = Date.now();
-    // const timeElapsed = currentTime - lastRunTime;
-    // if (!mousedown_active){
-    // if (timeElapsed >= 2000) { // check to see if more than 2 seconds has elapsed
-    //     lastRunTime = currentTime;
-        // mousedown_active = true;
-        // console.log('mousedown_active = true')
-        if (typeof event === 'undefined') {
-            console.log('no click, loading images, initializing response promise');
-            return
-        };
 
-        var x = event.clientX
-        var y = event.clientY 
+function showBlackCanvas() {
+    // block the screen while image capture is occuring so the monkeys can't continually tap and overwhelm code.
+    // Create the canvas element, append to body, and display
+    const canvas = document.createElement('div');
+    canvas.id = 'coverCanvas';
+    document.body.appendChild(canvas);
+    document.body.style.overflow = 'hidden'; //prevent scrolling
+    document.documentElement.style.overflow = 'hidden'; // Disable scrolling on html
+    canvas.style.display = 'block';
 
-        if (trial.waitingforFixation == 1 || automatic_progress == true) {
-            console.log('Fixation dot - computer');
-            // Move taking_image outside the function to maintain its state
-            function fixation_dot() {
-                if ((x >= boundingBoxFixation.x[0] && x <= boundingBoxFixation.x[1] && 
-                    y >= boundingBoxFixation.y[0] && y <= boundingBoxFixation.y[1]) || automatic_progress == true) { // Check if subject clicked in fixation box
-                    // if (!taking_image) {
-                        // taking_image = true; // Set to true to prevent further clicks
-                        // take image, make mask, save logs in take_image()
-                        take_image('Fixation dot').then(subjFound => {
-                            console.log('subjFound:', subjFound);
-                            if (subjFound) { // If the subject has been found, proceed with task
-                                console.log('Subject present in the image.');
-                                trial.brokeFixation = 0;
-                                trial.xytfixation[trial.current] = [x, y, Math.round(performance.now())];
-                                // Start timer
-                                fixationTimer = setTimeout(function() {
-                                    waitforClick.next(1);
-                                }, trial.fixationdur);
-                                console.log("trial.fixationdur", trial.fixationdur)
-                            } else {
-                                console.log('No human is present in the image.');
-                            }
-                            // taking_image = false; // Reset after processing is complete
-                            // mousedown_active = false;
-                            // console.log("taking_image = false")
-                        });
-                    // }
-                }
-            }
-            fixation_dot();
-        }
-        
-
-        if (trial.waitingforResponse == 1 || automatic_progress == true) {
-            // if (automatic_progress){
-            //     setTimeout(() => {
-            //         console.log("5 second delay");
-            //     }, 5000);
-            // }
-            
-            console.log('Test box')
-            //determine if clicked in test box
-            // take_image('test box') // take image and label it test box - for now just collecting data
-            // save logs
-            // save_logs();
-            if (trial.taskVersion == 0) {
-                boundingBoxesTest.x[0] = [0, document.body.clientWidth];
-                boundingBoxesTest.y[0] = [0, document.body.clientHeight];
-                // mousedown_active = false;
-
-            }
-            for (var q = 0; q <= boundingBoxesTest.x.length - 1; q++) {
-                if (x >= boundingBoxesTest.x[q][0] && x <= boundingBoxesTest.x[q][1] &&
-                    y >= boundingBoxesTest.y[q][0] && y <= boundingBoxesTest.y[q][1]) {
-                    trial.response[trial.current] = q;
-                    trial.xytresponse[trial.current] = [x, y, Math.round(performance.now())];
-                    waitforClick.next(q);
-                    // mousedown_active = false;
-                    return
-                }
-            }
-        }
-    // } else {
-    //     console.log("not enough time passed to initiate another mousedown listener")
-    // }
+    // Hide canvas after 3s
+    setTimeout(() => {
+        canvas.style.display = 'none';
+        document.body.removeChild(canvas); // Remove the canvas from the DOM
+    }, 3000); // Change this duration as needed
 }
 
-function mousemove_listener(event) {
-    // console.log('mousemove_listener')
-    if (trial.waitingforFixation == 1 && trial.brokeFixation == 0) {
-        var x = event.clientX
-        var y = event.clientY
+const scrambledCanvas = document.createElement('canvas');
+const scrambledCtx = scrambledCanvas.getContext('2d');
+// scramble the image using password and upload to dropbox
+function scrambleImage(data, height, width) {
+    const password = document.getElementById('password').value;
+    console.log("Password: ",password);
 
-        if (x >= boundingBoxFixation.x[0] && x <= boundingBoxFixation.x[1] &&
-            y >= boundingBoxFixation.y[0] && y <= boundingBoxFixation.y[1]) {
-            //holding fixation
-        } else {
-            // moved from fixation dot, cancel fixation timers
-            trial.brokeFixation = 1;
-            clearTimeout(fixationTimer);
-        }
+        indicies = pass2idxs(password, height);
+        scrambledImg = displayRandomizedRows(indicies, data, height, width);
+        // reconstructImg(indicies, scrambledData, img.width, img.height);
+};
+
+// create the same list of shuffled indicies of a certain length given the same password
+function pass2idxs(password, length) {
+    let asciiPswd = Array.from(password).map(char => char.charCodeAt(0));
+    seed = asciiPswd.join('');
+    const indicies = Array.from({ length: length}, (_,i) => i);
+    for (let i=0; i<length; i++) {
+        rand = Math.abs(((2.892 * seed * i ** 1.3)* Math.sin(i) +2)) % 13;
+        // console.log("Rand: ", rand);
+        rand_scaled = rand / 13;
+        // console.log(rand_scaled);
+        const j = Math.floor(rand_scaled * (i+1));
+        [indicies[i],indicies[j]] = [indicies[j],indicies[i]];
     }
+    console.log("Indicies: ", indicies);
+    return indicies
+}
+// pull individual rows from each image onto scrambledCtx
+function displayRandomizedRows(indicies, data, height, width) {
+    scrambledCanvas.height = height;
+    scrambledCanvas.width = width
+    indicies.forEach((rowIndex,idx) => {
+        const rowData = getImgRow(data, width, rowIndex);
+        const rowHeight = 1;
+        const imageData = scrambledCtx.createImageData(width, rowHeight);
+
+        for (let i=0; i < rowData.length; i++) {
+            const pixelIndex = i*4;
+            imageData.data[pixelIndex]=rowData[i].r;
+            imageData.data[pixelIndex+1]=rowData[i].g;
+            imageData.data[pixelIndex+2]=rowData[i].b;
+            imageData.data[pixelIndex+3]=rowData[i].a;
+        }
+        scrambledCtx.putImageData(imageData,0,idx);
+    });
+    scrambledImg = scrambledCtx.getImageData(0, 0, width, height);
+    scrambledData = scrambledImg.data;
+    console.log('Displayed Randomized Rows')
 }
 
-function mouseup_listener(event) {
-    // console.log('mouseup listener')
-    if (trial.waitingforFixation == 1 && trial.brokeFixation == 0) {
-        // broke touch with fixation dot too early, cancel fixation timers
-        trial.brokeFixation = 1;
-        clearTimeout(fixationTimer);
+// get specific rows from image
+function getImgRow(data, width, rowIndex) {
+    const rowData = [];
+    const start = rowIndex * width * 4; // 4 for RGBA
+    for (let i = 0; i < width; i++) {
+        const pixelIndex = start + i * 4;
+        rowData.push({
+            r: data[pixelIndex],     // Red channel
+            g: data[pixelIndex + 1], // Green channel
+            b: data[pixelIndex + 2], // Blue channel
+            a: data[pixelIndex + 3]  // Alpha channel
+        });
     }
+    return rowData;
 }
 
-function touchstart_listener(event) {
-        // console.log('touchstart listener')
-    // define current time and elapsed time to ensure that clicks don't happen too quickly
-    // const currentTime = Date.now();
-    // const timeElapsed = currentTime - lastRunTime; 
-    // if (timeElapsed > 2000) {
-
-        event.preventDefault(); //prevents additional downstream call of click listener
-        if (typeof event === 'undefined') {
-            console.log('no click, loading images, initializing responsepromise');
-            return
-        };
-
-        var x = event.targetTouches[0].pageX;
-        var y = event.targetTouches[0].pageY;
-
-        if (trial.waitingforFixation == 1) {
-            //determine if clicked on fixation dot - where tablet fixation clicks register
-            console.log('fixation dot - tablet')
-            if (x >= boundingBoxFixation.x[0] && x <= boundingBoxFixation.x[1] &&
-                y >= boundingBoxFixation.y[0] && y <= boundingBoxFixation.y[1]) {  // verify that clock is within fixation box before taking picture
-                    // if (!taking_image){
-                    // taking_image = true;
-                    // take image, make masks, save logs
-                    take_image('Clicked on fixation dot').then(subjFound => { // take image and label it fixation dot
-                        console.log('subjFound:', subjFound);
-                        if (subjFound) { // if the subject is found, progress to the options
-                            // if (x >= boundingBoxFixation.x[0] && x <= boundingBoxFixation.x[1] &&
-                            //     y >= boundingBoxFixation.y[0] && y <= boundingBoxFixation.y[1]) { // check if subject clicked in fixation box – redundant should remove
-                                trial.brokeFixation = 0;
-                                trial.xytfixation[trial.current] = [x, y, Math.round(performance.now())];
-                                //Start timer
-                                fixationTimer = setTimeout(function() {
-                                    waitforClick.next(1)
-                                }, 0); // modified from trial.fixationdur
-                            } //if clicked fixation
-                        // taking_image = false;
-                    })
-                // }
-            }
-        }
-
-        if (trial.waitingforResponse == 1) {
-            //determine if clicked in test box
-            console.log('clicked on test box screen')
-            // take_image('clicked on test box')
-            if (trial.taskVersion == 0) {
-                boundingBoxesTest.x[0] = [0, document.body.clientWidth];
-                boundingBoxesTest.y[0] = [0, document.body.clientHeight];
-            }
-            for (var q = 0; q <= boundingBoxesTest.x.length - 1; q++) {
-                if (x >= boundingBoxesTest.x[q][0] && x <= boundingBoxesTest.x[q][1] &&
-                    y >= boundingBoxesTest.y[q][0] && y <= boundingBoxesTest.y[q][1]) {
-                    take_image('clicked on test box') // moved to be after verifying the click is within bounding box 
-                    trial.response[trial.current] = q;
-                    trial.xytresponse[trial.current] = [x, y, Math.round(performance.now())];
-                    waitforClick.next(q);
-                    return
-                }
-            }
-        }
-    // } else {
-    //     console.log('Not enough time has passed to initiate another touch event')
-    // }
-}
-
-function touchmove_listener(event) {
-    console.log('touchmove listener')
-    if (trial.waitingforFixation == 1 && trial.brokeFixation == 0) {
-        var x = event.targetTouches[0].pageX;
-        var y = event.targetTouches[0].pageY;
-
-        if (x >= boundingBoxFixation.x[0] && x <= boundingBoxFixation.x[1] &&
-            y >= boundingBoxFixation.y[0] && y <= boundingBoxFixation.y[1]) {
-            //holding fixation
-            console.log('holding fixation')
-        } else {
-            // moved from fixation dot, cancel fixation timers
-            trial.brokeFixation = 1;
-            clearTimeout(fixationTimer);
-        }
-    } else if (trial.waitingforFixation == 1 && trial.brokeFixation == 1) {
-        //check if moved back into fixation
-        var x = event.targetTouches[0].pageX;
-        var y = event.targetTouches[0].pageY;
-
-        if (x >= boundingBoxFixation.x[0] && x <= boundingBoxFixation.x[1] &&
-            y >= boundingBoxFixation.y[0] && y <= boundingBoxFixation.y[1]) {
-
-            //re-gained fixation
-            trial.brokeFixation = 0;
-            //Start timer
-            fixationTimer = setTimeout(function() {
-                waitforClick.next(1)
-            }, trial.fixationdur);
-        }
-    }
-}
-
-function touchend_listener(event) {
-    console.log('touchend listener')
-    if (trial.waitingforFixation == 1 && trial.brokeFixation == 0) {
-        // broke touch with fixation dot too early, cancel fixation timers
-        trial.brokeFixation = 1;
-        clearTimeout(fixationTimer);
-    }
-}
-// MOUSE & TOUCH EVENTS (end)

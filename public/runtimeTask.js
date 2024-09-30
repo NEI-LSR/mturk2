@@ -98,6 +98,8 @@ buzzerbutton.onclick = function() {
 
 startbutton.onclick = function() {
     start_paradigm();
+    // const password = document.getElementById('password').value;
+    // console.log("Entered Password: ",password)
 };
 
 //populate lists
