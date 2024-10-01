@@ -2,6 +2,7 @@
 // let mousedown_active = false;
 // let taking_image = false;
 // let lastRunTime = 0;
+
 function mousedown_listener(event) {
     console.log("mousedown_listener")
     // const currentTime = Date.now();

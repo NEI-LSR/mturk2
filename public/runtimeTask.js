@@ -139,6 +139,12 @@ for (var q = tabletlist.length - 1; q >= 0; q--) {
 }
 tabletlistobj.addEventListener("change", tabletlist_listener, false);
 
+const progressList = document.getElementById("progress_list");
+progressList.addEventListener("change", function() {
+    console.log("Automatic progression is now: ", progressList.value)
+    automatic_progress = true; 
+});
+
 var subjectIsMonkey = 1;
 
 var tabletParamfile = {

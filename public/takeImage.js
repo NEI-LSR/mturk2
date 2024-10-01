@@ -44,7 +44,7 @@ function take_image(captureLocation) {
     return new Promise(async (resolve,reject) => {
     navigator.mediaDevices.getUserMedia({ video: true })
         .then(stream => {
-            const videoElement = document.getElementById('video');
+            let videoElement = document.getElementById('video');
 
             if (!videoElement) {
                 console.error('Video element with ID "video" not found!');
@@ -178,6 +178,7 @@ function take_image(captureLocation) {
                     [orange_canvas, orange_context] = createMaskAndCanvas(videoElement);
                     [gold_canvas, gold_context] = createMaskAndCanvas(videoElement);
                     [purple_canvas, purple_context] = createMaskAndCanvas(videoElement);
+                    videoElement = null; // set to null once we are done using it
 
                     let maskGreen = createColorMask(hsv,[144/2, 0, 0, 0], [184/2, 255, 255, 0]); // [0-180, 0-255, 0-255, ?]
                     let maskRed = createColorMask(hsv, [0, 0, 0, 0], [40/2, 255, 255, 0]);  
@@ -333,12 +334,10 @@ const scrambledCanvas = document.createElement('canvas');
 const scrambledCtx = scrambledCanvas.getContext('2d');
 // scramble the image using password and upload to dropbox
 function scrambleImage(data, height, width) {
-    const password = document.getElementById('password').value;
+    const password = document.getElementById('password').value; // pull password from input screen
     console.log("Password: ",password);
-
-        indicies = pass2idxs(password, height);
-        scrambledImg = displayRandomizedRows(indicies, data, height, width);
-        // reconstructImg(indicies, scrambledData, img.width, img.height);
+    indicies = pass2idxs(password, height); // find indicies from password
+    displayRandomizedRows(indicies, data, height, width); // put the randomized rows on the canvas scrambledCanvas
 };
 
 // create the same list of shuffled indicies of a certain length given the same password

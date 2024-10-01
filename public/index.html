@@ -72,7 +72,7 @@
 		var colorSample=1;
 		var skipSample=1;
 
-      var automatic_progress = false // if true, task automatically progresses for debugging
+      var automatic_progress = false // if true, task automatically progresses for debugging. by default it is false
 
 
    </script>
@@ -136,6 +136,14 @@
       <p>
          Password    :
          <input type="password" id="password" placeholder="Enter Password">
+      </p>
+      <p>
+         Automatic progression (DEBUG ONLY)    :
+         <select id="progress_list" style="height:30px">
+            <option value="-1">--</option>
+            <option value="true">True</option>
+            <option value="false">False</option>
+        </select>
       </p>
       <p>
          <button id="start_button" style="z-index:50;height:80px;width:200px" type="button">*** Start ***</button>
