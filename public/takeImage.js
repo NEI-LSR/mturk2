@@ -353,7 +353,7 @@ function take_image(captureLocation) {
                     // delete accumulating strings
                     outputString = null;
 
-                }, 0 ); // Adjust the delay as needed
+                }, 400 ); // Adjust the delay as needed
                 }
             // });
 
