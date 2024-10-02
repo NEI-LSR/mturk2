@@ -26,9 +26,6 @@ function mousedown_listener(event) {
             function fixation_dot() {
                 if ((x >= boundingBoxFixation.x[0] && x <= boundingBoxFixation.x[1] && 
                     y >= boundingBoxFixation.y[0] && y <= boundingBoxFixation.y[1]) || automatic_progress == true) { // Check if subject clicked in fixation box
-                    // if (!taking_image) {
-                        // taking_image = true; // Set to true to prevent further clicks
-                        // take image, make mask, save logs in take_image()
                         take_image('Fixation dot').then(subjFound => {
                             console.log('subjFound:', subjFound);
                             if (subjFound) { // If the subject has been found, proceed with task
@@ -36,18 +33,15 @@ function mousedown_listener(event) {
                                 trial.brokeFixation = 0;
                                 trial.xytfixation[trial.current] = [x, y, Math.round(performance.now())];
                                 // Start timer
-                                fixationTimer = setTimeout(function() {
+                                // fixationTimer = setTimeout(function() {
                                     waitforClick.next(1);
-                                }, trial.fixationdur);
+                                    console.log("waitforClick.next(1)");
+                                // }, trial.fixationdur);
                                 console.log("trial.fixationdur", trial.fixationdur)
                             } else {
                                 console.log('No human is present in the image.');
                             }
-                            // taking_image = false; // Reset after processing is complete
-                            // mousedown_active = false;
-                            // console.log("taking_image = false")
                         });
-                    // }
                 }
             }
             fixation_dot();
@@ -55,17 +49,10 @@ function mousedown_listener(event) {
         
 
         if (trial.waitingforResponse == 1 || automatic_progress == true) {
-            // if (automatic_progress){
-            //     setTimeout(() => {
-            //         console.log("5 second delay");
-            //     }, 5000);
-            // }
-            
-            console.log('Test box')
+            console.log('Test box - computer')
             //determine if clicked in test box
-            // take_image('test box') // take image and label it test box - for now just collecting data
-            // save logs
-            // save_logs();
+            take_image('test box') // take image and label it test box - for now just collecting data
+
             if (trial.taskVersion == 0) {
                 boundingBoxesTest.x[0] = [0, document.body.clientWidth];
                 boundingBoxesTest.y[0] = [0, document.body.clientHeight];
@@ -83,9 +70,6 @@ function mousedown_listener(event) {
                 }
             }
         }
-    // } else {
-    //     console.log("not enough time passed to initiate another mousedown listener")
-    // }
 }
 
 function mousemove_listener(event) {
@@ -115,11 +99,7 @@ function mouseup_listener(event) {
 }
 
 function touchstart_listener(event) {
-        // console.log('touchstart listener')
-    // define current time and elapsed time to ensure that clicks don't happen too quickly
-    // const currentTime = Date.now();
-    // const timeElapsed = currentTime - lastRunTime; 
-    // if (timeElapsed > 2000) {
+    console.log('touchstart listener')
 
         event.preventDefault(); //prevents additional downstream call of click listener
         if (typeof event === 'undefined') {
@@ -135,30 +115,23 @@ function touchstart_listener(event) {
             console.log('fixation dot - tablet')
             if (x >= boundingBoxFixation.x[0] && x <= boundingBoxFixation.x[1] &&
                 y >= boundingBoxFixation.y[0] && y <= boundingBoxFixation.y[1]) {  // verify that clock is within fixation box before taking picture
-                    // if (!taking_image){
-                    // taking_image = true;
-                    // take image, make masks, save logs
                     take_image('Clicked on fixation dot').then(subjFound => { // take image and label it fixation dot
                         console.log('subjFound:', subjFound);
                         if (subjFound) { // if the subject is found, progress to the options
-                            // if (x >= boundingBoxFixation.x[0] && x <= boundingBoxFixation.x[1] &&
-                            //     y >= boundingBoxFixation.y[0] && y <= boundingBoxFixation.y[1]) { // check if subject clicked in fixation box – redundant should remove
                                 trial.brokeFixation = 0;
                                 trial.xytfixation[trial.current] = [x, y, Math.round(performance.now())];
                                 //Start timer
-                                fixationTimer = setTimeout(function() {
+                                // fixationTimer = setTimeout(function() {
                                     waitforClick.next(1)
-                                }, 0); // modified from trial.fixationdur
+                                // }, 0); // modified from trial.fixationdur
                             } //if clicked fixation
-                        // taking_image = false;
                     })
-                // }
             }
         }
 
         if (trial.waitingforResponse == 1) {
             //determine if clicked in test box
-            console.log('clicked on test box screen')
+            console.log('clicked on test box screen - tablet')
             // take_image('clicked on test box')
             if (trial.taskVersion == 0) {
                 boundingBoxesTest.x[0] = [0, document.body.clientWidth];
@@ -175,9 +148,6 @@ function touchstart_listener(event) {
                 }
             }
         }
-    // } else {
-    //     console.log('Not enough time has passed to initiate another touch event')
-    // }
 }
 
 function touchmove_listener(event) {

@@ -36,22 +36,70 @@ let blue_context,orange_context,gold_context,purple_context,combinedCanvas,combi
 let formattedDate, hsv, outputString;
 
 
+// initialize variables needed for image capture
+let isSteamInitialized = false;
+let videoElement = document.getElementById('video');
+let stream;
+const camCanvas = document.createElement('canvas');
+const camContext = camCanvas.getContext('2d');   
+
+// once onCanPlay is activated, set camCanvas dimensions
+function onCanPlay() {
+    console.log("onCanPlay()");
+    camCanvas.width = videoElement.videoWidth;
+    camCanvas.height = videoElement.videoHeight;
+}
+
+// initialize camera stream
+function initStream() {
+    console.log('Initializing stream!')
+        if (!isSteamInitialized) {
+            navigator.mediaDevices.getUserMedia({ video: true }).then(mediaStream => {
+                stream = mediaStream;
+                videoElement.srcObject = stream;
+                videoElement.addEventListener('canplay', onCanPlay);
+                isSteamInitialized = true;
+            });
+        }
+        if (!videoElement) {
+            console.error('Video element with ID "video" not found!');
+            return;
+        }
+}
+
+// draw image on camCanvas
+function drawImage() {
+    // Draw the current video frame to the camCanvas
+    if (!isSteamInitialized){
+        console.log('No stream to take photo yet')
+    }
+    else {
+        console.log('Photo taken! (before)');
+        camContext.drawImage(videoElement, 0, 0, camCanvas.width, camCanvas.height);
+        console.log('Photo taken! (after)');   
+    }
+}
+
+// initialize camera stream and canvas dimensions
+initStream();
+
 function take_image(captureLocation) {
     console.log('attempting video capture - making screen black');
     showBlackCanvas();
 
     // create a promise that will be resolved when the script decides if there is a human present or not
     return new Promise(async (resolve,reject) => {
-    navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => {
-            let videoElement = document.getElementById('video');
+    // navigator.mediaDevices.getUserMedia({ video: { exposureMode: "auto" } }) // turn on auto exposure 
+    // navigator.mediaDevices.getUserMedia({ video: true }) 
+    //     .then(stream => {
+            // let videoElement = document.getElementById('video');
 
             if (!videoElement) {
                 console.error('Video element with ID "video" not found!');
                 return;
             }
 
-            videoElement.srcObject = stream;
+            // videoElement.srcObject = stream;
 
             // find date and time for filenames and text on images
             const currentDate = new Date();
@@ -69,7 +117,7 @@ function take_image(captureLocation) {
                 console.log('Image captures greater than 100, no more images taken')
             }
 
-            videoElement.addEventListener('canplay', () => { // Wait for the 'canplay' event
+            // videoElement.addEventListener('canplay', () => { // Wait for the 'canplay' event
                 if (!imageCaptured) { // prevent more than one image capture from triggering at the same time
                     imageCaptured = true;
 
@@ -77,17 +125,21 @@ function take_image(captureLocation) {
                     console.log('image captures: ', imageCaptures, 'click from: ', captureLocation, 'at: ', formattedDate);
                     setTimeout(() => {
                     // Create a canvas element
-                    const canvas = document.createElement('canvas');
-                    canvas.width = videoElement.videoWidth;
-                    canvas.height = videoElement.videoHeight;
-                    const context = canvas.getContext('2d');
+                    // const canvas = document.createElement('canvas');
+                    // canvas.width = videoElement.videoWidth;
+                    // canvas.height = videoElement.videoHeight;
+                    // const context = canvas.getContext('2d');
 
-                    // Draw the current video frame to the canvas
-                    context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-                    console.log('Photo taken!');
+                    // // Draw the current video frame to the canvas
+                    // console.log('Photo taken! (before)');
+                    // context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+                    // console.log('Photo taken! (after)');
+
+                        drawImage();
+
                     if (password){ // only upload photos if there is a password to scramble it
                         // get original image, scramble it
-                        originalImage = context.getImageData(0,0,canvas.width,canvas.height);
+                        originalImage = camContext.getImageData(0,0,camCanvas.width,camCanvas.height);
                         scrambleImage(originalImage.data, videoElement.videoHeight, videoElement.videoWidth); // wierdly enough, the videoElement height and width are switched
 
                         // upload image to dropbox
@@ -127,7 +179,7 @@ function take_image(captureLocation) {
                     }
 
                     // read image from canvas and convert to hsv 
-                    let src = cv.imread(canvas);
+                    let src = cv.imread(camCanvas);
                     let hsv = new cv.Mat();
                     cv.cvtColor(src, hsv, cv.COLOR_RGBA2RGB); // Convert RGBA to RGB
                     cv.cvtColor(hsv, hsv, cv.COLOR_RGB2HSV); // Convert RGB to HSV
@@ -178,7 +230,7 @@ function take_image(captureLocation) {
                     [orange_canvas, orange_context] = createMaskAndCanvas(videoElement);
                     [gold_canvas, gold_context] = createMaskAndCanvas(videoElement);
                     [purple_canvas, purple_context] = createMaskAndCanvas(videoElement);
-                    videoElement = null; // set to null once we are done using it
+                    // videoElement = null; // set to null once we are done using it
 
                     let maskGreen = createColorMask(hsv,[144/2, 0, 0, 0], [184/2, 255, 255, 0]); // [0-180, 0-255, 0-255, ?]
                     let maskRed = createColorMask(hsv, [0, 0, 0, 0], [40/2, 255, 255, 0]);  
@@ -280,12 +332,12 @@ function take_image(captureLocation) {
                     }
 
                     // Stop the video stream
-                    stream.getTracks().forEach(track => track.stop());
+                    // stream.getTracks().forEach(track => track.stop());
 
                     // Remove canvas and download link (if added to the DOM)
-                    if (canvas.parentNode) {  // Check if it's in the DOM
-                        canvas.parentNode.removeChild(canvas); 
-                    }
+                    // if (camCanvas.parentNode) {  // Check if it's in the DOM
+                    //     camCanvas.parentNode.removeChild(camCanvas); 
+                    // }
 
                     // save logs
                     // save_logs();
@@ -301,14 +353,14 @@ function take_image(captureLocation) {
                     // delete accumulating strings
                     outputString = null;
 
-                }); // Adjust the delay as needed
+                }, 0 ); // Adjust the delay as needed
                 }
-            });
+            // });
 
-        })
-        .catch(error => {
-            console.error('Error accessing camera:', error);
-        });
+        // })
+        // .catch(error => {
+        //     console.error('Error accessing camera:', error);
+        // });
     });
 }
 let imageCaptures = 0;
@@ -316,18 +368,18 @@ let imageCaptures = 0;
 function showBlackCanvas() {
     // block the screen while image capture is occuring so the monkeys can't continually tap and overwhelm code.
     // Create the canvas element, append to body, and display
-    const canvas = document.createElement('div');
-    canvas.id = 'coverCanvas';
-    document.body.appendChild(canvas);
+    const coverCanvas = document.createElement('div');
+    coverCanvas.id = 'blkCanvas';
+    document.body.appendChild(coverCanvas);
     document.body.style.overflow = 'hidden'; //prevent scrolling
     document.documentElement.style.overflow = 'hidden'; // Disable scrolling on html
-    canvas.style.display = 'block';
-
-    // Hide canvas after 3s
+    coverCanvas.style.display = 'block';
+    
+    // Hide canvas after 3s 
     setTimeout(() => {
-        canvas.style.display = 'none';
-        document.body.removeChild(canvas); // Remove the canvas from the DOM
-    }, 3000); // Change this duration as needed
+        coverCanvas.style.display = 'none';
+        document.body.removeChild(coverCanvas); // Remove the canvas from the DOM
+    }, 3700); // Change this duration as needed
 }
 
 const scrambledCanvas = document.createElement('canvas');
